@@ -1,54 +1,71 @@
 from requests_html import HTMLSession
-from gtts import gTTS
-from playsound import playsound
-import speech_recognition as sr
 import re
+import speech_recognition as sr
+import pyttsx3
+import SearchEngine
+import webbrowser
 
 
-lang = "zh-TW"
-site = "百度知道"
-
+lang = "en"
+site = ["Wikipedia"]
+func_list = [
+    SearchEngine.wiki
+]
 
 # Get the keyword from microphone.
 r = sr.Recognizer()
 with sr.Microphone() as source:
     r.adjust_for_ambient_noise(source, duration=1.0)
     print("Say something:")
-    audio = r.record(source, offset=None, duration=None)
+    audio = r.listen(source)
 
+print("progressing...")
 keyword = ""
 try:
     keyword = r.recognize_google(audio, language=lang)
-    print("Google Speech Recognition thinks you said " + keyword)
-except sr.UnknownValueError:
-    print("Google Speech Recognition could not understand audio")
-except sr.RequestError as e:
-    print("Could not request results from Google Speech Recognition service; {0}".format(e))
-print(keyword)
+    print("You said:", keyword)
+except Exception as e:
+    print(e)
 
 # Find the answer from the internet.
 session = HTMLSession()
 
-url = "https://www.google.com.tw/search?q=" + keyword + "+" + site
+url = "https://www.google.com/search?q=" + keyword
 response = session.get(url)
-a_list = response.html.find("a")
+# print(url)
+
 url = ""
-for a in a_list:
-    if re.findall(site, a.text):
-        url = a.attrs["href"]
-        break
+content = "I don't know."
+index = 0
+
+ifM9O = response.html.find("div[class='ifM9O'] a")
+if len(ifM9O) > 0:
+    for i in ifM9O:
+        if i.text == "Wikipedia":
+            url = i.attrs["href"]
+
+if url == "":
+    a_list = response.html.find("a")
+    print(a_list)
+    for a in a_list:
+        print(a.text)
+        match = re.findall("|".join(site), a.text)
+        if len(match) > 0:
+            url = a.attrs["href"]
+            index = site.index(match[0])
+            break
 
 # Special for site to find the content.
-response = session.get(url)
-c_list = response.html.find("div")
-content = ""
-for c in c_list:
-    if "id" in c.attrs and re.findall("best-content-", c.attrs["id"]):
-        content = "\n".join(c.text.split("\n")[1:])
-        break
-print(content)
+if url != "":
+    print(url)
+    webbrowser.open(url)
+    content = func_list[index](url)
+    content = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", content)
+    print(".\n".join(content.split(".")))
 
 # Speak the answer.
-tts = gTTS(text=content, lang=lang)
-tts.save("response.mp3")
-playsound("response.mp3")
+engine = pyttsx3.init()
+engine.setProperty('rate', 120)
+engine.setProperty('voice', engine.getProperty('voices')[1].id)
+engine.say(content)
+engine.runAndWait()
