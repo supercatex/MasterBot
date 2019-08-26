@@ -5,6 +5,10 @@ import speech_recognition as sr
 import re
 
 
+lang = "zh-TW"
+site = "百度知道"
+
+
 # Get the keyword from microphone.
 r = sr.Recognizer()
 with sr.Microphone() as source:
@@ -14,7 +18,7 @@ with sr.Microphone() as source:
 
 keyword = ""
 try:
-    keyword = r.recognize_google(audio, language="zh-TW")
+    keyword = r.recognize_google(audio, language=lang)
     print("Google Speech Recognition thinks you said " + keyword)
 except sr.UnknownValueError:
     print("Google Speech Recognition could not understand audio")
@@ -25,16 +29,16 @@ print(keyword)
 # Find the answer from the internet.
 session = HTMLSession()
 
-url = "https://www.google.com.tw/search?q=" + keyword + "+百度知道"
-print(url)
+url = "https://www.google.com.tw/search?q=" + keyword + "+" + site
 response = session.get(url)
 a_list = response.html.find("a")
 url = ""
 for a in a_list:
-    if re.findall("百度知道", a.text):
+    if re.findall(site, a.text):
         url = a.attrs["href"]
         break
 
+# Special for site to find the content.
 response = session.get(url)
 c_list = response.html.find("div")
 content = ""
@@ -45,6 +49,6 @@ for c in c_list:
 print(content)
 
 # Speak the answer.
-tts = gTTS(text=content, lang="zh-tw")
+tts = gTTS(text=content, lang=lang)
 tts.save("response.mp3")
 playsound("response.mp3")
