@@ -2,23 +2,19 @@ from requests_html import HTMLSession
 from gtts import gTTS
 from playsound import playsound
 import speech_recognition as sr
-from AudioManager import AudioManager
 import re
 
 
-am = AudioManager()
-frames = am.start_recoding()
-am.save_audio("temp.wav", frames)
-
+# Get the keyword from microphone.
 r = sr.Recognizer()
 with sr.Microphone() as source:
-    r.adjust_for_ambient_noise(source)
-with sr.AudioFile("temp.wav") as source:
-    audio = r.record(source)
+    r.adjust_for_ambient_noise(source, duration=1.0)
+    print("Say something:")
+    audio = r.record(source, offset=None, duration=None)
 
-keyword = "蘋果的好處"
+keyword = ""
 try:
-    keyword = r.recognize_google(audio)
+    keyword = r.recognize_google(audio, language="zh-TW")
     print("Google Speech Recognition thinks you said " + keyword)
 except sr.UnknownValueError:
     print("Google Speech Recognition could not understand audio")
@@ -26,10 +22,12 @@ except sr.RequestError as e:
     print("Could not request results from Google Speech Recognition service; {0}".format(e))
 print(keyword)
 
-
+# Find the answer from the internet.
 session = HTMLSession()
 
-response = session.get("https://www.google.com.tw/search?q=" + keyword + "+百度知道")
+url = "https://www.google.com.tw/search?q=" + keyword + "+百度知道"
+print(url)
+response = session.get(url)
 a_list = response.html.find("a")
 url = ""
 for a in a_list:
@@ -46,6 +44,7 @@ for c in c_list:
         break
 print(content)
 
+# Speak the answer.
 tts = gTTS(text=content, lang="zh-tw")
 tts.save("response.mp3")
 playsound("response.mp3")
